@@ -78,7 +78,7 @@ npm run build
 |------|-----|
 | 构建命令 | `npm run build` |
 | 输出目录 | `dist` |
-| 函数目录 | `functions` |
+| 函数目录 | `edge-functions` |
 
 4. 点击部署
 
@@ -88,7 +88,7 @@ npm run build
 npm run build
 ```
 
-将 `dist/` 和 `functions/` 两个目录上传到 EdgeOne Pages。
+将 `dist/` 和 `edge-functions/` 两个目录上传到 EdgeOne Pages。
 
 ---
 
@@ -116,7 +116,7 @@ Cookie 格式：`JSESSIONID=AD6FEECC12CC...`
 
 ```
 小幻电费查询/
-├── functions/
+├── edge-functions/
 │   └── api.js                # Edge Function (API 代理 + HTML 解析)
 ├── src/
 │   ├── main.js               # Vue 入口
@@ -138,7 +138,7 @@ Cookie 格式：`JSESSIONID=AD6FEECC12CC...`
 
 ## API 接口
 
-由 `functions/api.js` 处理，EdgeOne Pages 自动路由 `/api/*` 到该函数。
+由 `edge-functions/api.js` 处理，EdgeOne Pages 自动路由 `/api/*` 到该函数。
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
@@ -168,4 +168,4 @@ Cookie 格式：`JSESSIONID=AD6FEECC12CC...`
 | API 返回错误 | Cookie 格式不对或学校接口挂了 |
 | 换浏览器 Cookie 丢失 | Cookie 存在 localStorage，换了浏览器需重新粘贴 |
 | 图表没有历史趋势 | 需要多次打开页面，每次会自动记录一条 |
-| 部署后页面空白 | 确认 EdgeOne Pages 函数目录设置为 `functions` |
+| 部署后页面空白 | 确认 EdgeOne Pages 函数目录设置为 `edge-functions` |
