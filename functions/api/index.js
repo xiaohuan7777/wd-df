@@ -36,7 +36,6 @@ function parseRecordList(html) {
   while ((m = re.exec(html)) !== null) {
     const title = m[1].trim();
     const value = m[2].trim();
-    // 跳过 JS 模板
     if (title.includes('data[') || value.includes('data[')) continue;
     if (title.includes("' +") || value.includes("' +")) continue;
     if (title.includes('.result') || value.includes('.result')) continue;
@@ -60,7 +59,6 @@ function parseUsageRecords(html) {
     .filter(r => !r.title.includes('剩余') && !r.title.includes('购电') && !r.title.includes('补助'))
     .filter(r => !r.title.includes('空调') && !r.title.includes('照明') && !r.title.includes('插座'));
 
-  // 按天合并
   const daily = {};
   list.forEach(r => {
     const m = r.value.match(/([\d.]+)度/);
@@ -75,7 +73,7 @@ function parseUsageRecords(html) {
     date,
     usage: Math.round(d.usage * 100) / 100,
     count: d.count,
-    value_raw: `${d.usage}度 (${d.count}条)`,
+    value_raw: d.usage + '度 (' + d.count + '条)',
   }));
 }
 
@@ -103,7 +101,6 @@ async function fetchAllData(cookie) {
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.38',
   };
 
-  // 1. 余额页
   const r1 = await fetch('http://www.wendasch.cn/pay/home', { headers });
   const h1 = await r1.text();
   if (r1.status === 200) {
@@ -115,7 +112,6 @@ async function fetchAllData(cookie) {
     result.meter = p.meter;
   }
 
-  // 2. 充值记录
   const r2 = await fetch('http://www.wendasch.cn/pay/record', { headers });
   const h2 = await r2.text();
   if (r2.status === 200) {
@@ -128,7 +124,6 @@ async function fetchAllData(cookie) {
     result.recharge = parseRechargeRecords(h2);
   }
 
-  // 3. 用量记录
   const r3 = await fetch('http://www.wendasch.cn/use/record', { headers });
   const h3 = await r3.text();
   if (r3.status === 200) {
@@ -146,30 +141,34 @@ async function fetchAllData(cookie) {
 
 // ==================== 路由 ====================
 
-async function handleRequest(request) {
-  const url = new URL(request.url);
-  const path = url.pathname.replace(/\/+$/, '');
-
-  // CORS headers
-  const corsHeaders = {
+function corsHeaders() {
+  return {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
+}
+
+function json(data, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json; charset=utf-8', ...corsHeaders() },
+  });
+}
+
+export async function onRequest(context) {
+  const { request } = context;
+  const url = new URL(request.url);
+  // path: /data, /status, /set-cookie （EdgeOne 自动剥离 /api 前缀）
+  const action = url.pathname.replace(/^\/api\/?/, '').replace(/\/+$/, '') || 'data';
 
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders() });
   }
 
-  const json = (data, status = 200) =>
-    new Response(JSON.stringify(data, null, 2), {
-      status,
-      headers: { 'Content-Type': 'application/json; charset=utf-8', ...corsHeaders },
-    });
-
   try {
-    // GET /api/data?cookie=xxx
-    if (path === '/api/data' && request.method === 'GET') {
+    // GET /api/data 或 /api/
+    if ((action === 'data' || action === '') && request.method === 'GET') {
       const cookie = url.searchParams.get('cookie');
       if (!cookie) return json({ error: 'no_cookie' }, 401);
       const data = await fetchAllData(cookie);
@@ -177,16 +176,15 @@ async function handleRequest(request) {
     }
 
     // GET /api/status
-    if (path === '/api/status' && request.method === 'GET') {
-      return json({ has_cookie: false }); // Cookie 存在浏览器端
+    if (action === 'status' && request.method === 'GET') {
+      return json({ has_cookie: false });
     }
 
     // POST /api/set-cookie
-    if (path === '/api/set-cookie' && request.method === 'POST') {
+    if (action === 'set-cookie' && request.method === 'POST') {
       try {
         const { cookie } = await request.json();
         if (!cookie) return json({ error: 'missing cookie' }, 400);
-        // 测试 Cookie 是否有效
         const r = await fetch('http://www.wendasch.cn/pay/home', {
           headers: {
             'Cookie': cookie,
@@ -205,14 +203,8 @@ async function handleRequest(request) {
       }
     }
 
-    return json({ error: 'not found' }, 404);
-
+    return json({ error: 'not found', action }, 404);
   } catch (e) {
     return json({ error: e.message }, 500);
   }
-}
-
-// EdgeOne Pages Functions 入口
-export async function onRequest(context) {
-  return handleRequest(context.request);
 }
