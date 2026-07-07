@@ -159,8 +159,14 @@ function json(data, status = 200) {
 export async function onRequest(context) {
   const { request } = context;
   const url = new URL(request.url);
-  // path: /data, /status, /set-cookie （EdgeOne 自动剥离 /api 前缀）
-  const action = url.pathname.replace(/^\/api\/?/, '').replace(/\/+$/, '') || 'data';
+  const path = url.pathname;
+
+  // 只拦截 /api/*，其他请求交给静态文件
+  if (!path.startsWith('/api/') && path !== '/api') {
+    return context.next();
+  }
+
+  const action = path.replace(/^\/api\/?/, '').replace(/\/+$/, '') || 'data';
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: corsHeaders() });
