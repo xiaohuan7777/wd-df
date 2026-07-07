@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "routes": [
-      { "pattern": "/api/*", "function": "api" }
-    ]
-  }
-}
